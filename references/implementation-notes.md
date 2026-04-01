@@ -100,6 +100,29 @@ Readiness/guidance improvements:
   - allows custom gateway endpoints when no conflicting hint is detected
 - `tts` is no longer a hard blocker for initial video generation
 
+## 2026-04-01 first-image strategy prompt + switch
+
+User-facing guidance is now explicit right after four-pack generation:
+- confirmation message now includes a visible strategy choice:
+  - A `direct` (default, bind source image as `first_frame`)
+  - B `img2img` (style-transfer / redraw first image)
+- this removes hidden behavior and tells users how to switch in plain language.
+
+Execution changes:
+- `continue-seedance-flow.cjs` now accepts `--first-image-strategy direct|img2img`
+- strategy can also be inferred from revision text keywords:
+  - "图生图 / 转绘 / 风格化 / 换风格" -> `img2img`
+  - "原图 / 保脸 / 一致" -> `direct`
+- when strategy is `img2img`, direct-first-frame shortcut is disabled and flow continues through first-image generation.
+
+Driver propagation:
+- `run-seedance-workflow.cjs --action continue` now forwards `--first-image-strategy` to continue branches.
+- outputs now include `firstImageStrategy` / `strategyPrompt` for easier UI messaging and debug traces.
+
+Marketplace summary update:
+- `SKILL.md` frontmatter `description` updated to concise Chinese with multi-vendor routing mention:
+  - `Seedance / Vidu / MiniMax`
+
 ## 2026-03-30 workflow continuation fix
 
 A continuation bug was fixed in `continue-after-first-image.cjs`:
