@@ -1,6 +1,6 @@
 ---
 name: seedance-waoo-video-pipeline
-description: 把故事/文案快速做成短视频：自动走剧本、分镜、出片与交付流程，支持 Seedance + waoowaoo 协同生产。
+description: 把故事/文案快速做成短视频：自动走剧本、分镜、出片与交付流程；支持 Seedance / Vidu / MiniMax 多配置路由与 waoowaoo 协同生产。
 ---
 
 # Seedance + waoowaoo Video Pipeline
