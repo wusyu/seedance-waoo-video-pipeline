@@ -1,6 +1,6 @@
 ---
 name: seedance-waoo-video-pipeline
-description: 当需要把故事/小说内容转成短视频，且要在 Seedance 前期编导与 waoowaoo 生产流水线间协同时使用；适用于分镜规划、配额感知出片、字幕/TTS/环境音补全、可选口型同步，以及分阶段（半成品/成片）真实交付说明。
+description: 把故事/文案快速做成短视频：自动走剧本、分镜、出片与交付流程，支持 Seedance + waoowaoo 协同生产。
 ---
 
 # Seedance + waoowaoo Video Pipeline
