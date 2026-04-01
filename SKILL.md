@@ -1,6 +1,6 @@
 ---
 name: seedance-waoo-video-pipeline
-description: Use when turning story or novel content into short videos through a mixed Seedance pre-production + waoowaoo production pipeline, especially when work must balance storyboard planning, quota-aware clip production, subtitles/TTS/ambience finishing, optional lipsync, and truthful partial-vs-final delivery reporting.
+description: 当需要把故事/小说内容转成短视频，且要在 Seedance 前期编导与 waoowaoo 生产流水线间协同时使用；适用于分镜规划、配额感知出片、字幕/TTS/环境音补全、可选口型同步，以及分阶段（半成品/成片）真实交付说明。
 ---
 
 # Seedance + waoowaoo Video Pipeline
