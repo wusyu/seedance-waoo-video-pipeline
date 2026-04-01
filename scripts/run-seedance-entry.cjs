@@ -66,7 +66,15 @@ function buildConfirmationBundle(result, sourceImage = {}) {
       assets: readText(result.files.assets),
       storyboard: readText(result.files.storyboard),
     },
-    userPrompt: '请确认这套正式 Seedance 四件套。未确认前，流程不会继续进入首图/视频生成。',
+    firstImageStrategy: {
+      default: 'direct',
+      options: {
+        direct: '原图直绑（默认，身份一致、速度快）',
+        img2img: '图生图（风格化重绘，可统一画风）',
+      },
+      note: '四件套确认后可切换首图策略：direct（原图直绑）或 img2img（图生图）。',
+    },
+    userPrompt: '请确认这套正式 Seedance 四件套。并选择首图策略：A 原图直绑（默认）/ B 图生图。未确认前，流程不会继续进入首图/视频生成。',
   };
 }
 
@@ -85,6 +93,11 @@ function buildUserMessage(bundle) {
     '',
     '四、分镜',
     bundle.fullText.storyboard,
+    '',
+    '五、首图策略（可切换）',
+    `- A 原图直绑（默认）：${bundle.firstImageStrategy?.options?.direct || '身份一致、速度快'}`,
+    `- B 图生图：${bundle.firstImageStrategy?.options?.img2img || '风格化重绘，可统一画风'}`,
+    `- 默认策略：${bundle.firstImageStrategy?.default || 'direct'}`,
     '',
     bundle.userPrompt,
   ].join('\n');

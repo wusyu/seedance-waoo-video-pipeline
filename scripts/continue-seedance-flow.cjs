@@ -61,6 +61,22 @@ function resolveSourceImage(sourceImage) {
   return { ok: false, value: '', mode: '' };
 }
 
+function normalizeFirstImageStrategy(value) {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return '';
+  if (['direct', 'first-frame', 'firstframe', '原图', '原图直绑', 'a'].includes(text)) return 'direct';
+  if (['img2img', 'image2image', 'i2i', '图生图', 'b'].includes(text)) return 'img2img';
+  return '';
+}
+
+function inferFirstImageStrategy(revisionNote) {
+  const note = String(revisionNote || '').toLowerCase();
+  if (!note) return '';
+  if (/(图生图|转绘|重绘|风格化|统一画风|img2img|image2image|i2i|换风格)/i.test(note)) return 'img2img';
+  if (/(原图|保脸|一致|direct|first(?:[_ -]?frame)|首图直绑)/i.test(note)) return 'direct';
+  return '';
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const configPath = args.config;
@@ -69,6 +85,7 @@ function main() {
   const resultJson = args['result-json'];
   const panelIndex = Number(args['panel-index'] || '1');
   const revisionNote = String(args['revision-note'] || '').trim();
+  const firstImageStrategyArg = normalizeFirstImageStrategy(args['first-image-strategy']);
 
   if (!configPath || !entryResultPath) {
     throw new Error('用法: node continue-seedance-flow.cjs --config <json> --entry-result <json> --confirmed true [--panel-index 1] [--result-json <json>]');
@@ -128,7 +145,10 @@ function main() {
   const imageConfigReady = Boolean(imageStage?.厂商 && imageStage?.接口地址 && imageStage?.模型名 && !looksPlaceholder(imageStage?.APIKey));
   const videoConfigReady = Boolean(videoStage?.厂商 && videoStage?.接口地址 && videoStage?.模型名 && !looksPlaceholder(videoStage?.APIKey));
   const sourceImageResolved = resolveSourceImage(sourceImage);
-  const directFirstFrameEnabled = sourceImageResolved.ok && videoConfigReady;
+  const bundleStrategy = normalizeFirstImageStrategy(entry?.confirmationBundle?.firstImageStrategy?.default);
+  const noteStrategy = inferFirstImageStrategy(revisionNote);
+  const resolvedFirstImageStrategy = firstImageStrategyArg || noteStrategy || bundleStrategy || 'direct';
+  const directFirstFrameEnabled = sourceImageResolved.ok && videoConfigReady && resolvedFirstImageStrategy !== 'img2img';
   const firstImageAssetResultPath = path.resolve(outDir, `P${String(panelIndex).padStart(2, '0')}.first-image.asset.result.json`);
 
   if (directFirstFrameEnabled) {
@@ -147,6 +167,7 @@ function main() {
       sourceImageBound: true,
       sourceImageMode: sourceImageResolved.mode,
       sourceImageRef: sourceImageResolved.value,
+      firstImageStrategy: resolvedFirstImageStrategy,
     };
 
     writeJson(firstImageAssetResultPath, {
@@ -167,6 +188,7 @@ function main() {
       sourceImageBound: true,
       sourceImageMode: sourceImageResolved.mode,
       sourceImageRef: sourceImageResolved.value,
+      firstImageStrategy: resolvedFirstImageStrategy,
       directPanelContext,
     });
 
@@ -185,6 +207,7 @@ function main() {
         reasons: ['source image 可用', 'video 配置可用', '按默认策略进入直提视频'],
         nextStep: '继续调用 continue-after-first-image.cjs 进入正式视频提交。',
       },
+      firstImageStrategy: resolvedFirstImageStrategy,
       nextStep: '已进入原图直绑模式，继续正式视频提交。',
     };
     writeJson(resultJson, output);
@@ -204,6 +227,8 @@ function main() {
         reasons: ['缺少真实可用的 downstream.waoo.image 厂商 / 接口地址 / 模型名 / API Key'],
         nextStep: '补齐首图图片生成配置后，继续由 skill 内部生成真实首图图片，再把图片发给用户确认。',
       },
+      firstImageStrategy: resolvedFirstImageStrategy,
+      strategyPrompt: '可切换首图策略：A 原图直绑（默认）/ B 图生图（风格化重绘）。',
       nextStep: '先补齐 downstream.waoo.image 配置。',
     };
     writeJson(resultJson, output);
@@ -247,7 +272,9 @@ function main() {
     confirmationRequired: true,
     firstImageBundle: firstImage,
     firstImageAsset,
-    userMessage: firstImageAsset.caption,
+    firstImageStrategy: resolvedFirstImageStrategy,
+    strategyPrompt: '可切换首图策略：A 原图直绑（默认）/ B 图生图（风格化重绘）。',
+    userMessage: `${firstImageAsset.caption}\n\n可切换首图策略：A 原图直绑（默认）/ B 图生图（风格化重绘）。如需切换，请直接回复“切到图生图”或“切到原图直绑”。`,
     nextStep: '把真实首图图片发给用户确认；用户确认前不要进入视频生成。',
   };
   writeJson(resultJson, output);

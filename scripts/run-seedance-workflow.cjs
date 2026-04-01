@@ -594,6 +594,7 @@ function main() {
     const approval = args.approval || '';
     const panelIndex = args['panel-index'] || '1';
     const revisionNote = String(args['revision-note'] || '').trim();
+    const firstImageStrategy = String(args['first-image-strategy'] || '').trim();
     const sourceImageFile = args['reference-image-file'] ? path.resolve(String(args['reference-image-file'])) : '';
     const sourceImageUrl = String(args['reference-image-url'] || '').trim();
     const forceVideoVendor = String(args['video-vendor'] || '').trim();
@@ -673,6 +674,7 @@ function main() {
           '--confirmed', 'true',
           '--panel-index', String(panelIndex),
           '--result-json', resultJson || path.resolve(path.dirname(statePath), 'workflow.continue.result.json'),
+          ...(firstImageStrategy ? ['--first-image-strategy', firstImageStrategy] : []),
           ...(revisionNote ? ['--revision-note', revisionNote] : []),
           ...(sourceImageFile ? ['--reference-image-file', sourceImageFile] : []),
           ...(sourceImageUrl ? ['--reference-image-url', sourceImageUrl] : []),
@@ -771,6 +773,7 @@ function main() {
             '--confirmed', 'true',
             '--panel-index', revisedPanelIndex,
             '--result-json', resultJson || statePath,
+            ...(firstImageStrategy ? ['--first-image-strategy', firstImageStrategy] : []),
             '--revision-note', revisionNote,
             ...(sourceImageFile ? ['--reference-image-file', sourceImageFile] : []),
             ...(sourceImageUrl ? ['--reference-image-url', sourceImageUrl] : []),
@@ -832,6 +835,7 @@ function main() {
           '--confirmed', 'true',
           '--panel-index', panelIndex,
           '--result-json', resultJson || path.resolve(baseDir, 'workflow.continue.retry-first-image.result.json'),
+          ...(firstImageStrategy ? ['--first-image-strategy', firstImageStrategy] : []),
           ...(revisionNote ? ['--revision-note', revisionNote] : []),
           ...(sourceImageFile ? ['--reference-image-file', sourceImageFile] : []),
           ...(sourceImageUrl ? ['--reference-image-url', sourceImageUrl] : []),
