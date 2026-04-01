@@ -123,6 +123,23 @@ Marketplace summary update:
 - `SKILL.md` frontmatter `description` updated to concise Chinese with multi-vendor routing mention:
   - `Seedance / Vidu / MiniMax`
 
+## 2026-04-01 ASR route clarification (Volc)
+
+Subtitle-alignment path now has explicit dual-route guidance:
+
+1) AUC route (`/api/v3/auc/bigmodel`)
+- auth via `X-Api-Key`
+- resource via `volc.seedasr.auc`
+- suitable for utterance timestamp extraction from media URL
+
+2) VC route (`/api/v1/vc/submit|query`)
+- auth via `Authorization: Bearer; <token>` + `appid`
+- requires resource grant `vc.async.default`
+
+Operational rule:
+- if one route reports grant mismatch, auto-fallback to the other route or local whisper
+- do not keep retrying same unauthorized route
+
 ## 2026-03-30 workflow continuation fix
 
 A continuation bug was fixed in `continue-after-first-image.cjs`:

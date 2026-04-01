@@ -52,6 +52,11 @@ For `vidu_simple` / `seedance_simple` ask for:
 
 Then ask TTS only if user wants spoken voice in final output.
 
+If user asks for subtitle auto-alignment, ask ASR config in this order:
+1. `volc_asr_auc` (recommended): `X-Api-Key` + resource `volc.seedasr.auc`
+2. `volc_vc`: `appid` + `token` (resource `vc.async.default`)
+3. fallback: local `faster-whisper`
+
 Optional operator overrides at runtime:
 - `--video-vendor <seedance|vidu|minimax>`
 - `--image-vendor <seedance|minimax>`
@@ -115,3 +120,8 @@ For `vidu_simple` / `seedance_simple`:
 - locally available `ffmpeg` and `ffprobe` for mix/export stages
 
 Ambience can remain optional depending on workflow stage.
+
+For auto subtitle-alignment runs, at least one ASR route should be runnable:
+- `volc_asr_auc` key route (`X-Api-Key` + `volc.seedasr.auc`)
+- or `volc_vc` appid/token route (`vc.async.default`)
+- or local `faster-whisper`

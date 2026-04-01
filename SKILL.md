@@ -188,6 +188,11 @@ Runtime overrides:
 - `--video-vendor <seedance|vidu|minimax>`
 - `--image-vendor <seedance|minimax>`
 
+ASR routing (subtitle alignment):
+- prefer `volc_asr_auc` (`X-Api-Key` + `volc.seedasr.auc`)
+- fallback `volc_vc` (`appid + token`, resource `vc.async.default`)
+- fallback local `faster-whisper`
+
 When user explicitly requests “按剧本锁定/严格按剧本”: prefer Seedance strict-script profile
 - `content`: text + image_url(first_frame)
 - explicit `duration / resolution / generate_audio / camera_fixed / draft / seed / return_last_frame`

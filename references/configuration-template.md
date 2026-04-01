@@ -78,14 +78,40 @@ downstream:
       模型名: ""
       APIKey: ""
 
+    # Optional ASR block (single default)
+    asr:
+      厂商: "VolcASR"
+      接口地址: "https://openspeech.bytedance.com/api/v3/auc/bigmodel"
+      资源ID: "volc.seedasr.auc"
+      APIKey: ""
+      语言: "zh-CN"
+      输出分句: true
+
+    # Optional ASR multi-map for capability routing
+    asrs:
+      volc_asr_auc:
+        厂商: "VolcASR"
+        接口地址: "https://openspeech.bytedance.com/api/v3/auc/bigmodel"
+        资源ID: "volc.seedasr.auc"
+        APIKey: ""
+        鉴权方式: "x-api-key"
+      volc_vc:
+        厂商: "VolcVC"
+        接口地址: "https://openspeech.bytedance.com/api/v1/vc"
+        appid: ""
+        token: ""
+        鉴权方式: "bearer-appid-token"
+
 runtime:
   pipelineMode: "minimax_full"  # minimax_full | vidu_simple | seedance_simple
   routing:
     videoPriorityImageText: ["seedance", "vidu", "minimax"]
     videoPriorityTextOnly: ["seedance", "vidu", "minimax"]
     imagePriorityTextOnly: ["seedance", "minimax"]
+    asrPriority: ["volc_asr_auc", "volc_vc", "local_whisper"]
     defaultVideoVendor: ""
     defaultImageVendor: ""
+    defaultAsrVendor: "volc_asr_auc"
   时长秒数: 6
   分辨率: "768P"
   每日Fast视频额度: 2
@@ -131,6 +157,20 @@ downstream:
 ```
 
 Note: current `vidu_simple/seedance_simple` flow supports `Vidu` / `MiniMax` / `Seedance` direct video adapters out of the box.
+
+## ASR auth matrix (important)
+
+- `volc_asr_auc` (`/api/v3/auc/bigmodel`)
+  - Auth: `X-Api-Key`
+  - Resource: `volc.seedasr.auc`
+  - Typical usage: long-form ASR with utterance timestamps
+
+- `volc_vc` (`/api/v1/vc/submit|query`)
+  - Auth: `Authorization: Bearer; <token>` + `appid` query param
+  - Resource binding: `vc.async.default`
+  - Typical usage: subtitle-generation workflow from audio URL/binary
+
+If one route is unavailable due grant mismatch, fall back to the other route or local whisper.
 
 ## Portability rules
 
