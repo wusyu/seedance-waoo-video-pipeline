@@ -4,6 +4,8 @@
 
 This skill is now structured as an execution policy, not just a loose workflow note.
 
+Prompt-engineering overlays from Seedance 2.0 best practices are merged as a dedicated reference (`references/seedance-prompt-engineering.md`) and wired into SKILL phase `0.5` for pre-submit prompt hardening.
+
 Current pieces include:
 - SKILL.md rewritten around explicit execution phases
 - references for runtime policy and model routing
@@ -66,6 +68,37 @@ The biggest recurring source of confusion was not generation itself, but mismatc
 - merged clips sounding like separate experiments
 
 This refactor therefore promotes audio policy and rhythm policy to first-class references.
+
+## 2026-04-01 capability routing + guided config upgrade
+
+New behavior in `run-seedance-workflow.cjs`:
+- capability-first routing instead of single hardcoded provider path
+- supports provider maps:
+  - `downstream.waoo.videos.*`
+  - `downstream.waoo.images.*`
+- keeps backward compatibility with legacy single blocks:
+  - `downstream.waoo.video`
+  - `downstream.waoo.image`
+
+Routing policy details:
+- `runtime.routing.videoPriorityImageText`
+- `runtime.routing.videoPriorityTextOnly`
+- `runtime.routing.imagePriorityTextOnly`
+- optional runtime overrides:
+  - `--video-vendor`
+  - `--image-vendor`
+
+Flow behavior:
+- image+text defaults to direct `first_frame` binding after four-pack confirmation
+- first-image generation stage is skipped when source image exists
+- auto-continue can now auto-submit video and finish polling/download in one pass
+
+Readiness/guidance improvements:
+- guidance now includes routing summary and selected provider source
+- vendor/endpoint mismatch check is conservative:
+  - blocks obvious cross-vendor mixups
+  - allows custom gateway endpoints when no conflicting hint is detected
+- `tts` is no longer a hard blocker for initial video generation
 
 ## 2026-03-30 workflow continuation fix
 

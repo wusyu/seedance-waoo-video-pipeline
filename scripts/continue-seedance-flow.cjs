@@ -49,6 +49,18 @@ function looksPlaceholder(value) {
   return !text || text === 'demo' || text.includes('placeholder') || text === 'your_api_key';
 }
 
+function resolveSourceImage(sourceImage) {
+  const file = String(sourceImage?.file || '').trim();
+  const url = String(sourceImage?.url || '').trim();
+  if (file && fs.existsSync(path.resolve(file))) {
+    return { ok: true, value: path.resolve(file), mode: 'file' };
+  }
+  if (/^https?:\/\//i.test(url)) {
+    return { ok: true, value: url, mode: 'url' };
+  }
+  return { ok: false, value: '', mode: '' };
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const configPath = args.config;
@@ -69,6 +81,14 @@ function main() {
   if (!entry?.confirmationRequired || !entry?.confirmationBundle) {
     throw new Error('当前入口结果不在四件套确认阶段，无法继续');
   }
+
+  const argSourceImageFile = args['reference-image-file'] ? path.resolve(String(args['reference-image-file'])) : '';
+  const argSourceImageUrl = String(args['reference-image-url'] || '').trim();
+  const bundleSourceImage = entry?.confirmationBundle?.sourceImage || {};
+  const sourceImage = {
+    file: argSourceImageFile || String(bundleSourceImage?.file || '').trim(),
+    url: argSourceImageUrl || String(bundleSourceImage?.url || '').trim(),
+  };
 
   const outDir = path.resolve(path.dirname(entryResultPath), 'next');
   const firstImageResultPath = path.resolve(outDir, `P${String(panelIndex).padStart(2, '0')}.first-image.result.json`);
@@ -104,8 +124,72 @@ function main() {
   const firstImage = readJson(firstImageResultPath);
   const { config } = readConfig(configPath);
   const imageStage = config?.downstream?.waoo?.image;
+  const videoStage = config?.downstream?.waoo?.video;
   const imageConfigReady = Boolean(imageStage?.厂商 && imageStage?.接口地址 && imageStage?.模型名 && !looksPlaceholder(imageStage?.APIKey));
+  const videoConfigReady = Boolean(videoStage?.厂商 && videoStage?.接口地址 && videoStage?.模型名 && !looksPlaceholder(videoStage?.APIKey));
+  const sourceImageResolved = resolveSourceImage(sourceImage);
+  const directFirstFrameEnabled = sourceImageResolved.ok && videoConfigReady;
   const firstImageAssetResultPath = path.resolve(outDir, `P${String(panelIndex).padStart(2, '0')}.first-image.asset.result.json`);
+
+  if (directFirstFrameEnabled) {
+    const directPanelContext = {
+      projectId: String(firstImage.projectId || 'seedance-project'),
+      episodeId: String(firstImage.episodeId || entry?.confirmationBundle?.episode || 'E01'),
+      panelId: String(firstImage.panelId || `${entry?.confirmationBundle?.episode || 'E01'}-P${String(panelIndex).padStart(2, '0')}`),
+      panelIndex: Number(firstImage.panelIndex || panelIndex),
+      panelTitle: String(firstImage.panelTitle || ''),
+      imageUrl: sourceImageResolved.value,
+      videoPrompt: String(firstImage.promptText || ''),
+      subtitleText: String(firstImage.subtitleCandidate || ''),
+      existingVideoUrl: '',
+      isMainClip: true,
+      stateLabel: 'image-approved',
+      sourceImageBound: true,
+      sourceImageMode: sourceImageResolved.mode,
+      sourceImageRef: sourceImageResolved.value,
+    };
+
+    writeJson(firstImageAssetResultPath, {
+      ok: true,
+      panelIndex: directPanelContext.panelIndex,
+      panelTitle: directPanelContext.panelTitle,
+      imageFile: sourceImageResolved.mode === 'file' ? sourceImageResolved.value : '',
+      imageUrl: sourceImageResolved.mode === 'url' ? sourceImageResolved.value : '',
+      caption: `【Panel ${directPanelContext.panelIndex}${directPanelContext.panelTitle ? `｜${directPanelContext.panelTitle}` : ''}】已绑定用户原图作为 first_frame，跳过首图生成，直接进入视频提交。`,
+      stateLabel: 'image-approved-candidate',
+      promptText: String(firstImage.promptText || ''),
+      negativePrompt: String(firstImage.negativePrompt || ''),
+      subtitleCandidate: String(firstImage.subtitleCandidate || ''),
+      rawResponsePreview: {
+        mode: 'direct-first-frame',
+        sourceImageMode: sourceImageResolved.mode,
+      },
+      sourceImageBound: true,
+      sourceImageMode: sourceImageResolved.mode,
+      sourceImageRef: sourceImageResolved.value,
+      directPanelContext,
+    });
+
+    const output = {
+      ok: true,
+      currentStage: 'first-image-asset-confirm',
+      confirmationRequired: false,
+      autoContinue: true,
+      firstImageBundle: firstImage,
+      firstImageAsset: readJson(firstImageAssetResultPath),
+      directPanelContext,
+      checkpoint: {
+        stage: 'first-image-approved',
+        status: 'pass',
+        summary: '检测到用户提供图 + 文本，已自动绑定原图为 first_frame 并跳过首图生成。',
+        reasons: ['source image 可用', 'video 配置可用', '按默认策略进入直提视频'],
+        nextStep: '继续调用 continue-after-first-image.cjs 进入正式视频提交。',
+      },
+      nextStep: '已进入原图直绑模式，继续正式视频提交。',
+    };
+    writeJson(resultJson, output);
+    return;
+  }
 
   if (!imageConfigReady) {
     const output = {

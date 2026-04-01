@@ -47,12 +47,13 @@ function summarizeMarkdown(filePath, maxLines = 12) {
   return lines.slice(0, maxLines).join('\n');
 }
 
-function buildConfirmationBundle(result) {
+function buildConfirmationBundle(result, sourceImage = {}) {
   return {
     title: result.title,
     topic: result.topic,
     episode: result.episode,
     files: result.files,
+    sourceImage,
     previews: {
       intentBrief: summarizeMarkdown(result.files.intentBrief, 10),
       script: summarizeMarkdown(result.files.script, 18),
@@ -116,6 +117,10 @@ function main() {
   const style = args.style || '古装短剧写实风';
   const aspectRatio = args['aspect-ratio'] || '9:16';
   const revisionNote = String(args['revision-note'] || '').trim();
+  const sourceImage = {
+    file: args['reference-image-file'] ? path.resolve(String(args['reference-image-file'])) : '',
+    url: String(args['reference-image-url'] || '').trim(),
+  };
 
   if (!topic) {
     throw new Error('用法: node run-seedance-entry.cjs --config <json> --topic <题材> [--episode E01] [--out-dir <目录>] [--result-json <json>]');
@@ -155,7 +160,7 @@ function main() {
   }
 
   const packResult = readJson(packResultPath);
-  const confirmationBundle = buildConfirmationBundle(packResult);
+  const confirmationBundle = buildConfirmationBundle(packResult, sourceImage);
   confirmationBundle.userMessage = buildUserMessage(confirmationBundle);
   const checkpoint = buildFourPackCheckpoint(packResult, confirmationBundle);
   const output = {

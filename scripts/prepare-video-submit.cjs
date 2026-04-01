@@ -38,7 +38,9 @@ function writeJson(outputPath, data) {
 function canonicalVendor(name) {
   const value = String(name || '').trim().toLowerCase();
   if (!value) return '';
-  if (value.includes('minimax') || value.includes('mini max')) return 'minimax';
+  if (value.includes('minimax') || value.includes('mini max') || value.includes('hailuo')) return 'minimax';
+  if (value.includes('vidu')) return 'vidu';
+  if (value.includes('seedance') || value.includes('doubao')) return 'seedance';
   return value;
 }
 
@@ -111,7 +113,8 @@ function main() {
   const guard = buildGuard(panel, requireImageApproval);
   const checkpoint = buildCheckpoint(guard, videoStage);
   const vendor = canonicalVendor(videoStage?.厂商);
-  const videoConfigReady = Boolean(vendor === 'minimax' && videoStage?.接口地址 && videoStage?.模型名 && !looksPlaceholder(videoStage?.APIKey));
+  const supportedVideoVendors = new Set(['minimax', 'vidu', 'seedance']);
+  const videoConfigReady = Boolean(supportedVideoVendors.has(vendor) && videoStage?.接口地址 && videoStage?.模型名 && !looksPlaceholder(videoStage?.APIKey));
   const ready = guard.ok && !guard.needsUserConfirmation && videoConfigReady;
 
   const nextCommand = [

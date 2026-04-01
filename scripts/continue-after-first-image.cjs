@@ -140,9 +140,6 @@ function main() {
   if (!readiness.videoConfigReady) {
     reasons.push('当前 downstream.waoo.video 仍未处于可直跑状态（例如 APIKey 仍是 demo / placeholder）。');
   }
-  if (!readiness.tsxAvailable) {
-    reasons.push('当前环境缺少 tsx，但核心提交前预备链已改为 JS 入口，不再阻塞 panel context / prepare-submit 的内部推进。');
-  }
 
   const uniqueReasons = [...new Set(reasons)];
   const blocked = !prepareResult?.ready;

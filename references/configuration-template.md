@@ -28,11 +28,42 @@ downstream:
       模型名: ""
       APIKey: ""
 
+    # Optional image-provider map for text-only first-image fallback
+    images:
+      seedance:
+        厂商: "Seedance"
+        接口地址: "https://ark.cn-beijing.volces.com"
+        模型名: "seedance-image-1"
+        APIKey: ""
+      minimax:
+        厂商: "MiniMax"
+        接口地址: "https://api.minimaxi.com/v1"
+        模型名: "image-01"
+        APIKey: ""
+
     video:
       厂商: ""
       接口地址: ""
       模型名: ""
       APIKey: ""
+
+    # Optional multi-provider map for capability-based routing
+    videos:
+      seedance:
+        厂商: "Seedance"
+        接口地址: "https://ark.cn-beijing.volces.com"
+        模型名: "doubao-seedance-1-5-pro-251215"
+        APIKey: ""
+      vidu:
+        厂商: "Vidu"
+        接口地址: "https://toapis.com"
+        模型名: "viduq3-pro"
+        APIKey: ""
+      minimax:
+        厂商: "MiniMax"
+        接口地址: "https://api.minimaxi.com/v1"
+        模型名: "T2V-01-Director"
+        APIKey: ""
 
     tts:
       厂商: ""
@@ -49,6 +80,12 @@ downstream:
 
 runtime:
   pipelineMode: "minimax_full"  # minimax_full | vidu_simple | seedance_simple
+  routing:
+    videoPriorityImageText: ["seedance", "vidu", "minimax"]
+    videoPriorityTextOnly: ["seedance", "vidu", "minimax"]
+    imagePriorityTextOnly: ["seedance", "minimax"]
+    defaultVideoVendor: ""
+    defaultImageVendor: ""
   时长秒数: 6
   分辨率: "768P"
   每日Fast视频额度: 2

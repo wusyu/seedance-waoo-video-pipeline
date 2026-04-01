@@ -6,13 +6,23 @@ If the user is running the pipeline for the first time, guide them through minim
 
 ## Ask in this order
 
-### Step 0: Auto-detect pipeline mode
+### Step 0: Auto-detect pipeline mode + route policy
 Read `runtime.pipelineMode` first:
 - `minimax_full`: full upstream+downstream pipeline
-- `vidu_simple`: lightweight direct video pipeline (Vidu/MiniMax)
-- `seedance_simple`: lightweight direct video pipeline (Seedance)
+- `vidu_simple`: lightweight direct video pipeline
+- `seedance_simple`: lightweight direct video pipeline
 
 If missing, default to `minimax_full`.
+
+Then route by input capability (not by hardcoded vendor):
+- 纯文字: `text -> video`
+- 图+文字: `image+text -> video` (prefer direct first_frame binding)
+- 纯文字且要先看首图: route to `text -> image` first
+
+Use `runtime.routing` priority fields when present:
+- `videoPriorityImageText`
+- `videoPriorityTextOnly`
+- `imagePriorityTextOnly`
 
 ### Step 1: Local media tools
 First confirm whether the runtime can access:
@@ -33,17 +43,18 @@ Without these tools, local mixing / final packaging should not be claimed as run
 
 For `minimax_full` ask for:
 - upstream Seedance: 厂商 / 接口地址 / 模型名 / API Key
-- downstream image: 厂商 / 接口地址 / 模型名 / API Key
-- downstream video: 厂商 / 接口地址 / 模型名 / API Key
-- downstream TTS: 厂商 / 接口地址 / 模型名 / API Key
+- downstream video: use either single block `downstream.waoo.video` or multi-map `downstream.waoo.videos.*`
+- downstream image: use either single block `downstream.waoo.image` or multi-map `downstream.waoo.images.*` (optional when user already provides reference image)
+- downstream TTS: optional for initial video generation
 
-For `vidu_simple` ask only for:
-- downstream video: 厂商 / 接口地址 / 模型名 / API Key
-
-For `seedance_simple` ask only for:
-- downstream video: 厂商 / 接口地址 / 模型名 / API Key
+For `vidu_simple` / `seedance_simple` ask for:
+- downstream video: single block or multi-map as above
 
 Then ask TTS only if user wants spoken voice in final output.
+
+Optional operator overrides at runtime:
+- `--video-vendor <seedance|vidu|minimax>`
+- `--image-vendor <seedance|minimax>`
 
 Adapter note:
 - `vidu_simple` has built-in direct-video adapters for `minimax` / `vidu` / `seedance`
@@ -94,11 +105,12 @@ If AI ambience is used, ask for:
 
 For `minimax_full`:
 - upstream Seedance config
-- downstream image/video/TTS config
+- downstream video config (single block or videos map)
+- downstream image config only when no reference image is supplied
 - locally available `ffmpeg` and `ffprobe` for mix/export stages
 
 For `vidu_simple` / `seedance_simple`:
-- downstream video config
+- downstream video config (single block or videos map)
 - (optional) downstream TTS when narration is required
 - locally available `ffmpeg` and `ffprobe` for mix/export stages
 

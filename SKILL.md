@@ -172,8 +172,21 @@ Use only:
 
 Auto-detect `runtime.pipelineMode`:
 - `minimax_full` (full upstream + downstream)
-- `vidu_simple` (direct video-first, minimal keys; Vidu/MiniMax)
-- `seedance_simple` (direct video-first, minimal keys; Seedance)
+- `vidu_simple` (direct video-first, minimal keys)
+- `seedance_simple` (direct video-first, minimal keys)
+
+Use capability-based routing (not hardcoded model names):
+- text only: route to best `text->video` provider
+- image + text: route to best `image+text->video` provider
+- text only + user requests first-image preview: route `text->image` first
+
+Default routing rule (image + text input):
+- If user already provides a reference image, after four-pack confirmation prefer direct `first_frame` binding and skip first-image asset generation.
+- Keep script/storyboard continuity constraints, but bind identity from source image at pixel level.
+
+Runtime overrides:
+- `--video-vendor <seedance|vidu|minimax>`
+- `--image-vendor <seedance|minimax>`
 
 When user explicitly requests “按剧本锁定/严格按剧本”: prefer Seedance strict-script profile
 - `content`: text + image_url(first_frame)
@@ -181,7 +194,8 @@ When user explicitly requests “按剧本锁定/严格按剧本”: prefer Seed
 - do not mix `first_frame/last_frame` with `reference_image` in one request body
 
 Adapter note (current release):
-- direct video submit/poll/download adapters are built-in for `minimax` / `vidu` / `seedance` in `vidu_simple`
+- direct video submit/poll/download adapters are built-in for `minimax` / `vidu` / `seedance`
+- config can be single-block (`downstream.waoo.video/image`) or multi-map (`downstream.waoo.videos.*`, `downstream.waoo.images.*`)
 
 If configuration is incomplete, `run-seedance-workflow.cjs --action start` must return a structured `configuration-guidance` result instead of throwing or silently continuing.
 
@@ -224,6 +238,21 @@ It should be reflected forward into `E01_剧本.md`, `E01_素材清单.md`, and 
 Read:
 - `references/story-pack-spec.md`
 - `references/pipeline-overview.md`
+
+## Phase 0.5 — Prompt Engineering Overlay（已并入）
+
+Before first-image or video submit, apply Seedance prompt-engineering guardrails:
+
+1) Declare mode first: Text-only / First-Frame / First+Last / All-Reference.
+2) Add explicit Assets Mapping (`@image1/@video1/@audio1` each controls what).
+3) Use timecoded beats (one major action per segment).
+4) Keep prompt concise and controllable; add Negative Constraints when needed.
+5) For strict-script requests, prioritize identity continuity + camera continuity.
+
+If user asks for style-rich cinematic prompts, generate from the prompt playbook and then map into panel execution context (instead of freeform rewriting every time).
+
+Read:
+- `references/seedance-prompt-engineering.md`
 
 ## Phase 1 — 目标确认
 
