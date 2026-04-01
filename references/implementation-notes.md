@@ -140,6 +140,11 @@ Operational rule:
 - if one route reports grant mismatch, auto-fallback to the other route or local whisper
 - do not keep retrying same unauthorized route
 
+Structured hint policy (sub-script level, not preflight):
+- `generate-tts.ts` returns `configuration-guidance` JSON when TTS config is missing
+- `check-asr-config.ts` returns `configuration-guidance` JSON when ASR config is missing/incomplete
+- `prepare-ambience.ts --mode ai` returns `configuration-guidance` JSON when ambience config is missing/incomplete
+
 ## 2026-03-30 workflow continuation fix
 
 A continuation bug was fixed in `continue-after-first-image.cjs`:

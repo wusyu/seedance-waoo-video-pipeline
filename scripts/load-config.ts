@@ -12,6 +12,15 @@ export type AmbienceConfig = StageConfig & {
   优先本地环境音素材?: boolean
 }
 
+export type AsrConfig = StageConfig & {
+  资源ID?: string
+  appid?: string
+  token?: string
+  鉴权方式?: string
+  语言?: string
+  输出分句?: boolean
+}
+
 export type RuntimeConfig = {
   时长秒数?: number
   分辨率?: string
@@ -31,6 +40,8 @@ export type PipelineUserConfig = {
       video?: StageConfig
       tts?: StageConfig
       ambience?: AmbienceConfig
+      asr?: AsrConfig
+      asrs?: Record<string, AsrConfig>
     }
   }
   runtime?: RuntimeConfig

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { loadConfig, type PipelineUserConfig, type RuntimeConfig, type StageConfig, type AmbienceConfig } from './load-config'
+import { loadConfig, type PipelineUserConfig, type RuntimeConfig, type StageConfig, type AmbienceConfig, type AsrConfig } from './load-config'
 
 export type ArgMap = Record<string, string | boolean>
 
@@ -115,6 +115,143 @@ export function getTtsConfig(config: PipelineUserConfig): StageConfig | undefine
 
 export function getAmbienceConfig(config: PipelineUserConfig): AmbienceConfig | undefined {
   return config.downstream?.waoo?.ambience
+}
+
+export function getAsrConfig(config: PipelineUserConfig): AsrConfig | undefined {
+  const waoo = config.downstream?.waoo
+  if (!waoo) return undefined
+  if (waoo.asr) return waoo.asr
+  if (waoo.asrs && typeof waoo.asrs === 'object') {
+    const first = Object.values(waoo.asrs).find(Boolean)
+    if (first) return first
+  }
+  return undefined
+}
+
+export type StructuredIssue = {
+  item: string
+  reason: string
+}
+
+export type StructuredConfigHint = {
+  type: 'configuration-guidance'
+  feature: 'tts' | 'asr' | 'ambience'
+  message: string
+  missing: StructuredIssue[]
+  choices: string[]
+}
+
+export class StructuredConfigError extends Error {
+  hint: StructuredConfigHint
+
+  constructor(hint: StructuredConfigHint) {
+    super(hint.message)
+    this.name = 'StructuredConfigError'
+    this.hint = hint
+  }
+}
+
+function missingModelBlock(block: Record<string, unknown> | undefined, label: string): StructuredIssue[] {
+  if (!block || typeof block !== 'object') {
+    return [{ item: label, reason: '配置块缺失' }]
+  }
+
+  const missing: StructuredIssue[] = []
+  const required: Array<keyof StageConfig> = ['厂商', '接口地址', '模型名', 'APIKey']
+  for (const key of required) {
+    const value = String((block as StageConfig)[key] || '').trim()
+    if (!value || value.includes('YOUR_') || value.includes('YOUR-') || value.toLowerCase() === 'placeholder') {
+      missing.push({ item: `${label}.${key}`, reason: key === 'APIKey' ? '未填写有效密钥' : '缺失' })
+    }
+  }
+  return missing
+}
+
+export function ensureTtsReady(config: PipelineUserConfig) {
+  const missing = missingModelBlock(getTtsConfig(config) as unknown as Record<string, unknown>, 'downstream.waoo.tts')
+  if (missing.length) {
+    throw new StructuredConfigError({
+      type: 'configuration-guidance',
+      feature: 'tts',
+      message: '你选择了 TTS，但当前未配置完整。',
+      missing,
+      choices: ['补齐 TTS 配置后继续', '改为使用原音轨继续'],
+    })
+  }
+}
+
+export function ensureAsrReady(config: PipelineUserConfig) {
+  const asr = getAsrConfig(config)
+  if (!asr) {
+    throw new StructuredConfigError({
+      type: 'configuration-guidance',
+      feature: 'asr',
+      message: '你选择了 ASR 自动对齐，但当前未配置 ASR。',
+      missing: [{ item: 'downstream.waoo.asr|asrs', reason: '配置缺失' }],
+      choices: ['补齐 ASR 配置后继续', '改为手动字幕/跳过 ASR'],
+    })
+  }
+
+  const auth = String(asr.鉴权方式 || '').toLowerCase()
+  if (auth.includes('x-api-key') || String(asr.资源ID || '').includes('auc')) {
+    const missing: StructuredIssue[] = []
+    if (!String(asr.接口地址 || '').trim()) missing.push({ item: 'downstream.waoo.asr.接口地址', reason: '缺失' })
+    if (!String(asr.APIKey || '').trim()) missing.push({ item: 'downstream.waoo.asr.APIKey', reason: '缺失' })
+    if (!String(asr.资源ID || '').trim()) missing.push({ item: 'downstream.waoo.asr.资源ID', reason: '缺失' })
+    if (missing.length) {
+      throw new StructuredConfigError({
+        type: 'configuration-guidance',
+        feature: 'asr',
+        message: 'ASR(AUC) 配置不完整。',
+        missing,
+        choices: ['补齐 ASR(AUC) 配置后继续', '切换到 appid/token 路由', '改为手动字幕/跳过 ASR'],
+      })
+    }
+    return
+  }
+
+  if (auth.includes('bearer') || String(asr.appid || '').trim() || String(asr.token || '').trim()) {
+    const missing: StructuredIssue[] = []
+    if (!String(asr.接口地址 || '').trim()) missing.push({ item: 'downstream.waoo.asr.接口地址', reason: '缺失' })
+    if (!String(asr.appid || '').trim()) missing.push({ item: 'downstream.waoo.asr.appid', reason: '缺失' })
+    if (!String(asr.token || '').trim()) missing.push({ item: 'downstream.waoo.asr.token', reason: '缺失' })
+    if (missing.length) {
+      throw new StructuredConfigError({
+        type: 'configuration-guidance',
+        feature: 'asr',
+        message: 'ASR(VC) 配置不完整。',
+        missing,
+        choices: ['补齐 ASR(VC) 配置后继续', '切换到 X-Api-Key 路由', '改为手动字幕/跳过 ASR'],
+      })
+    }
+    return
+  }
+
+  const missing = missingModelBlock(asr as unknown as Record<string, unknown>, 'downstream.waoo.asr')
+  if (missing.length) {
+    throw new StructuredConfigError({
+      type: 'configuration-guidance',
+      feature: 'asr',
+      message: 'ASR 配置不完整。',
+      missing,
+      choices: ['补齐 ASR 配置后继续', '改为手动字幕/跳过 ASR'],
+    })
+  }
+}
+
+export function ensureAmbienceReady(config: PipelineUserConfig, preferLocal = false) {
+  const ambience = getAmbienceConfig(config)
+  if (preferLocal) return
+  const missing = missingModelBlock(ambience as unknown as Record<string, unknown>, 'downstream.waoo.ambience')
+  if (missing.length) {
+    throw new StructuredConfigError({
+      type: 'configuration-guidance',
+      feature: 'ambience',
+      message: '你选择了 AI 环境音，但当前未配置完整。',
+      missing,
+      choices: ['补齐环境音配置后继续', '改为本地环境音/跳过环境音'],
+    })
+  }
 }
 
 export function getRuntimeConfig(config: PipelineUserConfig): RuntimeConfig | undefined {

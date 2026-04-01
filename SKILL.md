@@ -426,8 +426,9 @@ Current scripts:
 - `scripts/merge-final-videos.ts`
 - `scripts/poll-official-video.ts`
 - `scripts/download-official-video.ts`
-- `scripts/generate-tts.ts`
-- `scripts/prepare-ambience.ts`
+- `scripts/generate-tts.ts` (TTS 选择后子脚本级配置检查，缺失返回结构化 `configuration-guidance`)
+- `scripts/check-asr-config.ts` (ASR 选择后子脚本级配置检查，缺失返回结构化 `configuration-guidance`)
+- `scripts/prepare-ambience.ts` (环境音选择后子脚本级配置检查，AI 模式缺失返回结构化 `configuration-guidance`)
 - `scripts/mix-final-video.ts`
 - `scripts/build-delivery-manifest.ts`
 - `scripts/self-test-workflow-driver.cjs` (用于校验 workflow driver 的阶段/审批映射)

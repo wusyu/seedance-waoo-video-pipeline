@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { canonicalVendor, fetchBinaryToFile, getStringArg, getTtsConfig, loadSkillConfig, parseArgs, trimSlash, writeJsonMaybe } from './_shared'
+import { canonicalVendor, ensureTtsReady, fetchBinaryToFile, getStringArg, getTtsConfig, loadSkillConfig, parseArgs, StructuredConfigError, trimSlash, writeJsonMaybe } from './_shared'
 
 type TtsResult = {
   厂商: string
@@ -110,27 +110,43 @@ if (require.main === module) {
   const text = getStringArg(args, 'text')
   const outputPath = getStringArg(args, 'out')
   const resultJsonPath = getStringArg(args, 'result-json') || undefined
-  if (!text || !outputPath) {
-    throw new Error('用法: tsx generate-tts.ts --config <json> --text <文本> --out <mp3路径> [--result-json <json>] [--voice-id <音色>] [--speed 1] [--pitch 0] [--volume 1]')
-  }
 
-  const config = loadSkillConfig(configPath)
-  const stage = getTtsConfig(config)
-  if (!stage?.厂商 || !stage?.接口地址 || !stage?.模型名 || !stage?.APIKey) {
-    throw new Error('TTS 配置不完整，请先补齐 厂商 / 接口地址 / 模型名 / API Key')
-  }
+  try {
+    if (!text || !outputPath) {
+      throw new Error('用法: tsx generate-tts.ts --config <json> --text <文本> --out <mp3路径> [--result-json <json>] [--voice-id <音色>] [--speed 1] [--pitch 0] [--volume 1]')
+    }
 
-  const vendor = canonicalVendor(stage.厂商)
-  const minimaxVoice = resolveMinimaxVoiceOptions(args)
-  const openAiVoice = getStringArg(args, 'voice-id', 'alloy')
-  const promise = vendor === 'minimax'
-    ? generateMinimaxTts(stage.接口地址, stage.APIKey, stage.模型名, text, outputPath, minimaxVoice)
-    : vendor === 'openai' || vendor === 'openai-compatible'
-      ? generateOpenAiCompatibleTts(stage.接口地址, stage.APIKey, stage.模型名, text, outputPath, openAiVoice)
-      : Promise.reject(new Error(`暂不支持的 TTS 厂商: ${stage.厂商}`))
+    const config = loadSkillConfig(configPath)
+    ensureTtsReady(config)
+    const stage = getTtsConfig(config)
+    if (!stage) {
+      throw new Error('TTS 配置不存在')
+    }
 
-  promise.then((result) => writeJsonMaybe(result, resultJsonPath)).catch((error) => {
+    const vendor = canonicalVendor(stage.厂商)
+    const minimaxVoice = resolveMinimaxVoiceOptions(args)
+    const openAiVoice = getStringArg(args, 'voice-id', 'alloy')
+    const promise = vendor === 'minimax'
+      ? generateMinimaxTts(stage.接口地址, stage.APIKey, stage.模型名, text, outputPath, minimaxVoice)
+      : vendor === 'openai' || vendor === 'openai-compatible'
+        ? generateOpenAiCompatibleTts(stage.接口地址, stage.APIKey, stage.模型名, text, outputPath, openAiVoice)
+        : Promise.reject(new Error(`暂不支持的 TTS 厂商: ${stage.厂商}`))
+
+    promise.then((result) => writeJsonMaybe(result, resultJsonPath)).catch((error) => {
+      if (error instanceof StructuredConfigError) {
+        writeJsonMaybe({ ok: false, ...error.hint }, resultJsonPath)
+        process.exit(2)
+        return
+      }
+      console.error(error)
+      process.exit(1)
+    })
+  } catch (error) {
+    if (error instanceof StructuredConfigError) {
+      writeJsonMaybe({ ok: false, ...error.hint }, resultJsonPath)
+      process.exit(2)
+    }
     console.error(error)
     process.exit(1)
-  })
+  }
 }
