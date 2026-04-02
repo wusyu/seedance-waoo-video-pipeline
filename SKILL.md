@@ -190,10 +190,12 @@ Runtime overrides:
 - `--prompt-mode <text-only|first-last-frame|all-reference>`
 - `--prompt-style "..."`
 - `--prompt-camera "..."`
+- `--prompt-scenario <general|ecommerce|narrative|mv|tutorial>`
 
 Prompt engineering overlay (now built-in):
 - `run-seedance-workflow.cjs --action start` will generate `prompt-pack.result.json`
 - output includes: mode, assets mapping, timecoded beats, structured prompt blocks
+- workflow result also includes `promptQuality`（score/level/suggestions）用于快速判断可用性
 - implementation script: `scripts/build-seedance-prompt-pack.cjs`
 
 ASR routing (subtitle alignment):

@@ -19,6 +19,7 @@ function main() {
     '--topic', '孙悟空大战天兵天将',
     '--duration', '10',
     '--mode', 'first-last-frame',
+    '--scenario', 'narrative',
     '--has-reference-image', 'true',
     '--result-json', outPath,
   ], {
@@ -35,8 +36,10 @@ function main() {
   assert(Array.isArray(data.beats) && data.beats.length >= 3, 'beats should be generated');
   assert(typeof data.prompt === 'string' && data.prompt.includes('[目标]'), 'prompt should contain structured sections');
   assert(data.assets && data.assets.referenceImage && data.assets.referenceImage.required === true, 'reference image requirement should be true');
+  assert(data.scenario === 'narrative', `unexpected scenario: ${data.scenario}`);
+  assert(Array.isArray(data.negatives) && data.negatives.length >= 2, 'negatives should be generated');
 
-  console.log(JSON.stringify({ ok: true, outPath, beats: data.beats.length }, null, 2));
+  console.log(JSON.stringify({ ok: true, outPath, beats: data.beats.length, scenario: data.scenario }, null, 2));
 }
 
 try {

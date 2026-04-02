@@ -141,6 +141,11 @@ Marketplace summary update:
   - `--prompt-mode <text-only|first-last-frame|all-reference>`
   - `--prompt-style "..."`
   - `--prompt-camera "..."`
+  - `--prompt-scenario <general|ecommerce|narrative|mv|tutorial>`
+- Prompt pack 升级（v2）：
+  - 场景模板库（general/ecommerce/narrative/mv/tutorial）
+  - 负面约束分场景生成
+  - workflow 输出 `promptQuality`（score/level/suggestions）用于快速质检
 
 ## 2026-04-01 ASR route clarification (Volc)
 

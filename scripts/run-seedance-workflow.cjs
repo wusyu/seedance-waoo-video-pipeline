@@ -54,6 +54,7 @@ function buildPromptPack(options) {
     durationHint,
     styleHint,
     cameraHint,
+    scenarioHint,
     workdir,
   } = options;
 
@@ -68,6 +69,7 @@ function buildPromptPack(options) {
 
   if (styleHint) args.push('--style', String(styleHint));
   if (cameraHint) args.push('--camera', String(cameraHint));
+  if (scenarioHint) args.push('--scenario', String(scenarioHint));
 
   const child = runNodeScript(
     path.resolve(__dirname, 'build-seedance-prompt-pack.cjs'),
@@ -102,6 +104,34 @@ function isPlaceholder(value) {
   const text = String(value || '').trim().toLowerCase();
   if (!text) return true;
   return text.includes('your-') || text.includes('placeholder') || text === 'demo';
+}
+
+function evaluatePromptPack(promptPackResult) {
+  if (!promptPackResult?.ok || !promptPackResult?.promptPack) {
+    return {
+      score: 0,
+      level: 'blocked',
+      suggestions: ['Prompt Pack 生成失败，先检查 prompt 脚本与输入参数。'],
+    };
+  }
+
+  const pack = promptPackResult.promptPack;
+  let score = 40;
+  if (pack.mode) score += 15;
+  if (Array.isArray(pack.beats) && pack.beats.length >= 3) score += 20;
+  if (typeof pack.prompt === 'string' && pack.prompt.includes('[目标]') && pack.prompt.includes('[时间节拍（Timecoded Beats）]')) score += 15;
+  if (pack.assets?.referenceImage) score += 5;
+  if (Array.isArray(pack.negatives) && pack.negatives.length >= 2) score += 5;
+  score = Math.max(0, Math.min(100, score));
+
+  const suggestions = [];
+  if (!pack.mode) suggestions.push('补充 --prompt-mode 明确生成模式。');
+  if (!Array.isArray(pack.beats) || pack.beats.length < 3) suggestions.push('增加时间节拍，保证镜头节奏可控。');
+  if (!pack.scenario || pack.scenario === 'general') suggestions.push('可通过 --prompt-scenario 切换到 narrative/ecommerce/mv 等场景模板。');
+  if (!Array.isArray(pack.negatives) || pack.negatives.length < 2) suggestions.push('补充负面约束，减少崩画与镜头漂移。');
+
+  const level = score >= 85 ? 'excellent' : score >= 70 ? 'good' : score >= 55 ? 'fair' : 'weak';
+  return { score, level, suggestions };
 }
 
 function getPipelineMode(config) {
@@ -541,8 +571,10 @@ function main() {
       durationHint: args.duration || '',
       styleHint: args['prompt-style'] || '',
       cameraHint: args['prompt-camera'] || '',
+      scenarioHint: args['prompt-scenario'] || '',
       workdir,
     });
+    const promptQuality = evaluatePromptPack(promptPackResult);
 
     if (isSimpleMode(readiness.mode)) {
       const panelContextPath = path.resolve(resolvedOutDir, 'panel-context.approved.json');
@@ -607,6 +639,7 @@ function main() {
         promptPack: promptPackResult.ok ? promptPackResult.promptPack : null,
         promptPackStatus: promptPackResult.ok ? 'ready' : 'failed',
         promptPackError: promptPackResult.ok ? '' : promptPackResult.error,
+        promptQuality,
         panelContext,
         submitResult: chain.submitResult || null,
         taskId: chain.taskId || '',
@@ -657,6 +690,7 @@ function main() {
     data.promptPack = promptPackResult.ok ? promptPackResult.promptPack : null;
     data.promptPackStatus = promptPackResult.ok ? 'ready' : 'failed';
     data.promptPackError = promptPackResult.ok ? '' : promptPackResult.error;
+    data.promptQuality = promptQuality;
     data.artifacts = data.artifacts || {};
     data.artifacts.promptPackPath = promptPackResult.promptPackPath;
     data.workflow = { action: 'start', driver: 'run-seedance-workflow.cjs' };
