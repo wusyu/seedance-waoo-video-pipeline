@@ -116,12 +116,13 @@ function evaluatePromptPack(promptPackResult) {
   }
 
   const pack = promptPackResult.promptPack;
-  let score = 40;
+  let score = 20;
   if (pack.mode) score += 15;
   if (Array.isArray(pack.beats) && pack.beats.length >= 3) score += 20;
   if (typeof pack.prompt === 'string' && pack.prompt.includes('[目标]') && pack.prompt.includes('[时间节拍（Timecoded Beats）]')) score += 15;
   if (pack.assets?.referenceImage) score += 5;
-  if (Array.isArray(pack.negatives) && pack.negatives.length >= 2) score += 5;
+  if (Array.isArray(pack.negatives) && pack.negatives.length >= 2) score += 10;
+  score += pack.scenario && pack.scenario !== 'general' ? 20 : -5;
   score = Math.max(0, Math.min(100, score));
 
   const suggestions = [];
@@ -130,8 +131,134 @@ function evaluatePromptPack(promptPackResult) {
   if (!pack.scenario || pack.scenario === 'general') suggestions.push('可通过 --prompt-scenario 切换到 narrative/ecommerce/mv 等场景模板。');
   if (!Array.isArray(pack.negatives) || pack.negatives.length < 2) suggestions.push('补充负面约束，减少崩画与镜头漂移。');
 
-  const level = score >= 85 ? 'excellent' : score >= 70 ? 'good' : score >= 55 ? 'fair' : 'weak';
+  const level = score >= 90 ? 'excellent' : score >= 80 ? 'good' : score >= 65 ? 'fair' : 'weak';
   return { score, level, suggestions };
+}
+
+function inferScenarioFromTopic(topic) {
+  const text = String(topic || '').toLowerCase();
+  if (!text) return 'narrative';
+  if (/(电商|带货|产品|上新|开箱|卖点|sku|优惠|直播)/.test(text)) return 'ecommerce';
+  if (/(mv|音乐|歌曲|节拍|舞蹈|唱|rap|伴奏)/.test(text)) return 'mv';
+  if (/(教程|教学|讲解|步骤|演示|怎么做|如何)/.test(text)) return 'tutorial';
+  return 'narrative';
+}
+
+function uniqueList(items) {
+  const out = [];
+  for (const item of items) {
+    const value = String(item || '').trim().toLowerCase();
+    if (!value) continue;
+    if (!out.includes(value)) out.push(value);
+  }
+  return out;
+}
+
+function buildFallbackScenarioList(currentScenario, topic) {
+  const inferred = inferScenarioFromTopic(topic);
+  const current = String(currentScenario || 'general').trim().toLowerCase();
+  const candidates = uniqueList([
+    inferred,
+    current === 'general' ? 'narrative' : 'general',
+    'ecommerce',
+    'mv',
+    'tutorial',
+  ]);
+  return candidates.filter((s) => s !== current);
+}
+
+function runPromptFallback(options) {
+  const {
+    enabled,
+    minScore,
+    topic,
+    basePromptPackResult,
+    basePromptQuality,
+    outDir,
+    hasReferenceImage,
+    modeHint,
+    durationHint,
+    styleHint,
+    cameraHint,
+    workdir,
+  } = options;
+
+  const report = {
+    enabled: Boolean(enabled),
+    minScore,
+    triggered: false,
+    applied: false,
+    fromScenario: basePromptPackResult?.promptPack?.scenario || 'general',
+    toScenario: '',
+    fromScore: basePromptQuality?.score || 0,
+    toScore: basePromptQuality?.score || 0,
+    attempts: [],
+    reason: '',
+  };
+
+  if (!enabled) {
+    report.reason = 'disabled';
+    return {
+      promptPackResult: basePromptPackResult,
+      promptQuality: basePromptQuality,
+      report,
+    };
+  }
+
+  if ((basePromptQuality?.score || 0) >= minScore) {
+    report.reason = 'score-above-threshold';
+    return {
+      promptPackResult: basePromptPackResult,
+      promptQuality: basePromptQuality,
+      report,
+    };
+  }
+
+  report.triggered = true;
+  report.reason = 'score-below-threshold';
+
+  const scenarios = buildFallbackScenarioList(report.fromScenario, topic);
+  let bestResult = basePromptPackResult;
+  let bestQuality = basePromptQuality;
+  let bestScenario = report.fromScenario;
+
+  for (const scenario of scenarios) {
+    const candidate = buildPromptPack({
+      topic,
+      outDir,
+      hasReferenceImage,
+      modeHint,
+      durationHint,
+      styleHint,
+      cameraHint,
+      scenarioHint: scenario,
+      workdir,
+    });
+    const quality = evaluatePromptPack(candidate);
+    report.attempts.push({ scenario, score: quality.score, level: quality.level, ok: Boolean(candidate.ok) });
+
+    if (quality.score > (bestQuality?.score || 0)) {
+      bestResult = candidate;
+      bestQuality = quality;
+      bestScenario = scenario;
+    }
+    if (quality.score >= minScore) break;
+  }
+
+  if ((bestQuality?.score || 0) > (basePromptQuality?.score || 0)) {
+    report.applied = true;
+    report.toScenario = bestScenario;
+    report.toScore = bestQuality.score;
+  } else {
+    report.toScenario = report.fromScenario;
+    report.toScore = basePromptQuality?.score || 0;
+  }
+
+  return {
+    promptPackResult: bestResult,
+    promptQuality: bestQuality,
+    report,
+  };
 }
 
 function getPipelineMode(config) {
@@ -562,7 +689,7 @@ function main() {
 
     const resolvedOutDir = path.resolve(outDir);
     fs.mkdirSync(resolvedOutDir, { recursive: true });
-    const promptPackResult = buildPromptPack({
+    let promptPackResult = buildPromptPack({
       configPath: activeConfigPath,
       topic,
       outDir: resolvedOutDir,
@@ -574,7 +701,26 @@ function main() {
       scenarioHint: args['prompt-scenario'] || '',
       workdir,
     });
-    const promptQuality = evaluatePromptPack(promptPackResult);
+    let promptQuality = evaluatePromptPack(promptPackResult);
+
+    const fallbackEnabled = parseBool(args['prompt-auto-fallback'], true);
+    const fallbackMinScore = Number(args['prompt-min-score'] || '80');
+    const fallbackResult = runPromptFallback({
+      enabled: fallbackEnabled,
+      minScore: Number.isFinite(fallbackMinScore) ? fallbackMinScore : 80,
+      topic,
+      basePromptPackResult: promptPackResult,
+      basePromptQuality: promptQuality,
+      outDir: resolvedOutDir,
+      hasReferenceImage: Boolean(sourceImageFile || sourceImageUrl),
+      modeHint: args['prompt-mode'] || '',
+      durationHint: args.duration || '',
+      styleHint: args['prompt-style'] || '',
+      cameraHint: args['prompt-camera'] || '',
+      workdir,
+    });
+    promptPackResult = fallbackResult.promptPackResult;
+    promptQuality = fallbackResult.promptQuality;
 
     if (isSimpleMode(readiness.mode)) {
       const panelContextPath = path.resolve(resolvedOutDir, 'panel-context.approved.json');
@@ -640,6 +786,7 @@ function main() {
         promptPackStatus: promptPackResult.ok ? 'ready' : 'failed',
         promptPackError: promptPackResult.ok ? '' : promptPackResult.error,
         promptQuality,
+        promptFallback: fallbackResult.report,
         panelContext,
         submitResult: chain.submitResult || null,
         taskId: chain.taskId || '',
@@ -691,6 +838,7 @@ function main() {
     data.promptPackStatus = promptPackResult.ok ? 'ready' : 'failed';
     data.promptPackError = promptPackResult.ok ? '' : promptPackResult.error;
     data.promptQuality = promptQuality;
+    data.promptFallback = fallbackResult.report;
     data.artifacts = data.artifacts || {};
     data.artifacts.promptPackPath = promptPackResult.promptPackPath;
     data.workflow = { action: 'start', driver: 'run-seedance-workflow.cjs' };

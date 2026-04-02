@@ -146,6 +146,11 @@ Marketplace summary update:
   - 场景模板库（general/ecommerce/narrative/mv/tutorial）
   - 负面约束分场景生成
   - workflow 输出 `promptQuality`（score/level/suggestions）用于快速质检
+- 低分自动回退：
+  - 默认开启 `--prompt-auto-fallback=true`
+  - 默认阈值 `--prompt-min-score=80`
+  - 当分数低于阈值时自动尝试其他 scenario 生成更优 prompt pack
+  - 结果写入 `promptFallback`（triggered/applied/fromScore/toScore/attempts）
 
 ## 2026-04-01 ASR route clarification (Volc)
 

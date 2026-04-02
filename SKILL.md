@@ -191,11 +191,14 @@ Runtime overrides:
 - `--prompt-style "..."`
 - `--prompt-camera "..."`
 - `--prompt-scenario <general|ecommerce|narrative|mv|tutorial>`
+- `--prompt-auto-fallback <true|false>`（默认 true）
+- `--prompt-min-score <0-100>`（默认 80）
 
 Prompt engineering overlay (now built-in):
 - `run-seedance-workflow.cjs --action start` will generate `prompt-pack.result.json`
 - output includes: mode, assets mapping, timecoded beats, structured prompt blocks
 - workflow result also includes `promptQuality`（score/level/suggestions）用于快速判断可用性
+- when score < threshold, workflow can auto-try alternate scenarios and output `promptFallback` report
 - implementation script: `scripts/build-seedance-prompt-pack.cjs`
 
 ASR routing (subtitle alignment):
