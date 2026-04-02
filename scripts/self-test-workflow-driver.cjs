@@ -89,10 +89,28 @@ function runCase({ name, driverPath, configPath, statePath, approval, expectedEx
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const driverPath = path.resolve(args.driver || path.resolve(__dirname, 'run-seedance-workflow.cjs'));
-  const configPath = path.resolve(args.config || path.resolve(__dirname, '..', 'config', 'pipeline.config.example.json'));
   const workRoot = path.resolve(args['work-dir'] || path.join(os.tmpdir(), `seedance-driver-selftest-${Date.now()}`));
 
   fs.mkdirSync(workRoot, { recursive: true });
+
+  const configPath = path.resolve(args.config || path.join(workRoot, 'selftest.config.json'));
+  if (!args.config) {
+    writeJson(configPath, {
+      runtime: {
+        pipelineMode: 'seedance_simple',
+      },
+      downstream: {
+        waoo: {
+          video: {
+            厂商: 'seedance',
+            接口地址: 'https://ark.cn-beijing.volces.com',
+            模型名: 'doubao-seedance-1-5-pro-250428',
+            APIKey: 'selftest-key',
+          },
+        },
+      },
+    });
+  }
 
   const stageFourPackPath = path.join(workRoot, 'state.four-pack.json');
   const stageFirstImagePath = path.join(workRoot, 'state.first-image-confirm.json');

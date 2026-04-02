@@ -123,6 +123,25 @@ Marketplace summary update:
 - `SKILL.md` frontmatter `description` updated to concise Chinese with multi-vendor routing mention:
   - `Seedance / Vidu / MiniMax`
 
+## 2026-04-02 Prompt pack overlay (P0)
+
+新增前置提示词工程层，避免 freeform prompt 漂移：
+
+- 新增脚本：`scripts/build-seedance-prompt-pack.cjs`
+  - 输出结构化 prompt（目标/模式/镜头动作/时间节拍/负面约束）
+  - 输出 assets mapping 与 timecoded beats
+- 新增自测：`scripts/self-test-prompt-pack.cjs`
+- `run-seedance-workflow.cjs --action start` 默认生成 `prompt-pack.result.json`
+  - simple/full 两条启动路径都会透传：
+    - `promptPack`
+    - `promptPackStatus`
+    - `promptPackError`
+    - `artifacts.promptPackPath`
+- 新增可选覆盖参数：
+  - `--prompt-mode <text-only|first-last-frame|all-reference>`
+  - `--prompt-style "..."`
+  - `--prompt-camera "..."`
+
 ## 2026-04-01 ASR route clarification (Volc)
 
 Subtitle-alignment path now has explicit dual-route guidance:

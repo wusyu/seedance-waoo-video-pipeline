@@ -187,6 +187,14 @@ Default routing rule (image + text input):
 Runtime overrides:
 - `--video-vendor <seedance|vidu|minimax>`
 - `--image-vendor <seedance|minimax>`
+- `--prompt-mode <text-only|first-last-frame|all-reference>`
+- `--prompt-style "..."`
+- `--prompt-camera "..."`
+
+Prompt engineering overlay (now built-in):
+- `run-seedance-workflow.cjs --action start` will generate `prompt-pack.result.json`
+- output includes: mode, assets mapping, timecoded beats, structured prompt blocks
+- implementation script: `scripts/build-seedance-prompt-pack.cjs`
 
 ASR routing (subtitle alignment):
 - prefer `volc_asr_auc` (`X-Api-Key` + `volc.seedasr.auc`)

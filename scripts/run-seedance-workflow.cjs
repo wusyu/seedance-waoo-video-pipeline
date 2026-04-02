@@ -44,6 +44,60 @@ function runNodeScript(scriptPath, scriptArgs, cwd) {
   });
 }
 
+function buildPromptPack(options) {
+  const {
+    configPath,
+    topic,
+    outDir,
+    hasReferenceImage,
+    modeHint,
+    durationHint,
+    styleHint,
+    cameraHint,
+    workdir,
+  } = options;
+
+  const promptPackPath = path.resolve(outDir, 'prompt-pack.result.json');
+  const args = [
+    '--topic', topic,
+    '--duration', String(durationHint || '10'),
+    '--mode', String(modeHint || '').trim() || (hasReferenceImage ? 'first-last-frame' : 'text-only'),
+    '--has-reference-image', hasReferenceImage ? 'true' : 'false',
+    '--result-json', promptPackPath,
+  ];
+
+  if (styleHint) args.push('--style', String(styleHint));
+  if (cameraHint) args.push('--camera', String(cameraHint));
+
+  const child = runNodeScript(
+    path.resolve(__dirname, 'build-seedance-prompt-pack.cjs'),
+    args,
+    workdir,
+  );
+
+  if (child.status !== 0) {
+    return {
+      ok: false,
+      promptPackPath,
+      error: (child.stderr || child.stdout || 'build prompt pack failed').trim(),
+    };
+  }
+
+  if (!fs.existsSync(promptPackPath)) {
+    return {
+      ok: false,
+      promptPackPath,
+      error: 'prompt pack file not generated',
+    };
+  }
+
+  return {
+    ok: true,
+    promptPackPath,
+    promptPack: readJson(promptPackPath),
+  };
+}
+
 function isPlaceholder(value) {
   const text = String(value || '').trim().toLowerCase();
   if (!text) return true;
@@ -476,9 +530,21 @@ function main() {
 
     if (!topic) throw new Error('start 模式需要 --topic');
 
+    const resolvedOutDir = path.resolve(outDir);
+    fs.mkdirSync(resolvedOutDir, { recursive: true });
+    const promptPackResult = buildPromptPack({
+      configPath: activeConfigPath,
+      topic,
+      outDir: resolvedOutDir,
+      hasReferenceImage: Boolean(sourceImageFile || sourceImageUrl),
+      modeHint: args['prompt-mode'] || '',
+      durationHint: args.duration || '',
+      styleHint: args['prompt-style'] || '',
+      cameraHint: args['prompt-camera'] || '',
+      workdir,
+    });
+
     if (isSimpleMode(readiness.mode)) {
-      const resolvedOutDir = path.resolve(outDir);
-      fs.mkdirSync(resolvedOutDir, { recursive: true });
       const panelContextPath = path.resolve(resolvedOutDir, 'panel-context.approved.json');
       const config = readJson(activeConfigPath);
 
@@ -538,6 +604,9 @@ function main() {
         routing: readiness.route,
         configPath: activeConfigPath,
         configPatched: Boolean(readiness.effectiveConfigPatched),
+        promptPack: promptPackResult.ok ? promptPackResult.promptPack : null,
+        promptPackStatus: promptPackResult.ok ? 'ready' : 'failed',
+        promptPackError: promptPackResult.ok ? '' : promptPackResult.error,
         panelContext,
         submitResult: chain.submitResult || null,
         taskId: chain.taskId || '',
@@ -546,6 +615,7 @@ function main() {
         artifacts: {
           panelContextPath,
           chainResultPath,
+          promptPackPath: promptPackResult.promptPackPath,
           outDir: resolvedOutDir,
         },
         workflow: {
@@ -584,6 +654,11 @@ function main() {
     data.routing = readiness.route;
     data.configPath = activeConfigPath;
     data.configPatched = Boolean(readiness.effectiveConfigPatched);
+    data.promptPack = promptPackResult.ok ? promptPackResult.promptPack : null;
+    data.promptPackStatus = promptPackResult.ok ? 'ready' : 'failed';
+    data.promptPackError = promptPackResult.ok ? '' : promptPackResult.error;
+    data.artifacts = data.artifacts || {};
+    data.artifacts.promptPackPath = promptPackResult.promptPackPath;
     data.workflow = { action: 'start', driver: 'run-seedance-workflow.cjs' };
     writeJson(resultJson || outputPath, data);
     return;
